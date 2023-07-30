@@ -141,18 +141,14 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
-
-    if args.gui:
-        animate()
-        if args.disableDBT:
-           dec_Bt.config(state="disabled")
-        if args.auto_accel:
-           acc_Bt.config(state="disabled")
-           a.after(5000,auto_acc)
-        if args.add_canvas:
-           c1 = tk.Canvas(a, width=200,height=500)
-           c1.grid(row=0,column=2)
-        a.mainloop()
-    else:
-        pass 
+    animate()
+    if args.disableDBT:
+      dec_Bt.config(state="disabled")
+    if args.auto_accel:
+      acc_Bt.config(state="disabled")
+      a.after(5000,auto_acc)
+    if args.add_canvas:
+      c1 = tk.Canvas(a, width=200,height=500)
+      c1.grid(row=0,column=2)
+    a.mainloop()
 
