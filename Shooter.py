@@ -1,5 +1,4 @@
 import tkinter as tk
-import numpy as np
 import argparse
 
 
@@ -28,26 +27,77 @@ class Ball:
    def getX(self):return self.__x
    def getY(self):return self.__y
    def getRadius(self): return self.__r
-   def setRadius(self,r): self.__r=r 
+   def setRadius(self,r): self.__r=r
 
-s=1
+class ScoreCard(tk.Canvas):
+   def __init__(self,master,width=200,height=200,enemy_name=None,shooter_name=None):
+      super().__init__(master,width=width,height=height)
+      self.__master = master
+      self.__width = width
+      self.__height = height
+      self.__enemy_name = "enemy 1" if not enemy_name else enemy_name
+      self.__shooter_name = "shooter 1" if not shooter_name else shooter_name
+      self.__id=None
+      self.__sc_text=None
+      self.__score=0
+      self.__text = self.create_text(width/2,height/2,text="enemy:"+self.__enemy_name+"\nshooter:"+self.__shooter_name)
+   
+   def design(self,x,y):
+      if self.__width/2-x<=50 and  self.__height/2-y<=50:
+         self.__animate_screen(x,y,"blue")
+      else:
+         self.__animate_screen(x,y,"yellow")
+         self.after(10,lambda:self.design(x+1,y+1))
+   
+   def __animate_screen(self,x,y,color):
+      self.delete(self.__id)
+      self.delete(self.__text)
+      self.delete(self.__sc_text)
+      self.__id=self.create_rectangle(self.__width/2-x,self.__height/2-y,self.__width/2+x,self.__height/2+y,fill=color)
+      self.__text=self.create_text(self.__width/2,self.__height/2-15-y,text="enemy:"+self.__enemy_name+"\nshooter:"+self.__shooter_name)
+      self.__sc_text=self.create_text(self.__width/2,self.__height/2,text="score:"+str(self.__score))
+      self.update()
+   
+   def put_score(self,score):
+      self.__score=score
+      self.delete(self.__sc_text)
+      self.__sc_text=self.create_text(self.__width/2,self.__height/2,text="score:"+str(self.__score))
+      self.update()
+
+def distance(x1,y1,x2,y2):
+   return ((x1-x2)**2 + (y1-y2)**2)**0.5
+
 def accel_decel(speedx=1,speedy=1,command=None):
    global s
    if command=="a":s*=speedx
    elif command=="d":s/=speedx
-   
 
+def score_card_display():
+   global close_score_card_Bt
+   score_card1.grid(row=0,column=1)
+   score_card1.design(0,0)
+   display_score_Bt.config(state="disabled")
+   close_score_card_Bt = tk.Button(a,text="close",command=close_score_card)
+   close_score_card_Bt.grid(row=1,column=1)
+
+def close_score_card():
+   score_card1.grid_forget()
+   close_score_card_Bt.grid_forget()
+   display_score_Bt.config(state="normal")
 
 a = tk.Tk()
 a.title("simple shooter game")
 c = tk.Canvas(a,width=500,height=500)
 b = Ball(c,30,100,100,"red").draw()
-c.grid(row=0,column=0,columnspan=2)
-acc_Bt=tk.Button(a,text="accelerate",command=lambda :accel_decel(speedx=2,command="a"))
-acc_Bt.grid(row=1,column=0)
-dec_Bt=tk.Button(a,text="decelerate",command=lambda :accel_decel(speedx=2,command="d"))
-dec_Bt.grid(row=1,column=1)
+score_card1 = ScoreCard(a,500,500)
+c.grid(row=0,column=0)
+display_score_Bt = tk.Button(a, text="display score", command=score_card_display)
+display_score_Bt.grid(row=1,column=0)
 x=b.getX()
+s=1
+score=0
+enemy_life=100
+shooter_life=100
 h=1
 l=None
 l1=None
@@ -66,8 +116,8 @@ t=0
 def check_dis(ball,e):
   global closer
   color="black"
-  if np.sqrt((b.getX()-e.x)**2 + (b.getY()-e.y)**2)<=b.getRadius():closer=True
-  elif np.sqrt((b.getX()-e.x)**2 + (b.getY()-e.y)**2)>=b.getRadius():closer=False
+  if distance(e.x,e.y,ball.getX(),ball.getY())<=b.getRadius():closer=True
+  else:closer=False
 c.bind("<Motion>",lambda e:check_dis(b,e))
 
 def auto_acc():
@@ -95,9 +145,11 @@ a.bind("<Key-a>",shoot)
 msg_text=c.create_text(150,20,text="bullets "+str(bullets)+msg)
 
 def animate():
-    global x, h, closer, is_shot, bullet_x, bullet_y, bullets, msg, msg_text, fix_x, fix_y, o, l1,o1,t
-    if np.sqrt((bullet_y-b.getY())**2+(bullet_x-b.getX())**2)<=b.getRadius()+10:is_hit=True
-    elif np.sqrt((bullet_y-b.getY())**2+(bullet_x-b.getX())**2)>=b.getRadius()+10:
+    global x, h, closer, is_shot, bullet_x, bullet_y, bullets, msg, msg_text,  enemy_life_msg, enemy_life, fix_x, fix_y, o, l1,o1,t,score
+    c.delete(enemy_life_msg)
+    enemy_life_msg = c.create_text(350,20,text="enemy life:"+str(enemy_life))
+    if distance(b.getX(),b.getY(),bullet_x,bullet_y)<=b.getRadius()+10:is_hit=True
+    elif distance(b.getX(),b.getY(),bullet_x,bullet_y)>=b.getRadius()+10:
        is_hit=False
        t=0
     if not closer:
@@ -119,6 +171,8 @@ def animate():
                       if is_hit and t<2:
                          t+=1
                          b.setRadius(b.getRadius()-1)
+                         enemy_life-=0.5*enemy_life
+                         score+=10
                 bullet_y += -1   
                 c.delete(o1)
                 c.delete(msg_text)
@@ -127,14 +181,12 @@ def animate():
         x += h * s
     elif closer:
         b.move(b.getX(), b.getY())
+    score_card1.put_score(score)
     a.after(10, animate)
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Shooter Game, Hello from the shooter game community")
-    parser.add_argument("-g", "--gui", action="store_true", help="Open the GUI")
-    parser.add_argument("-dg","--disableDBT",action="store_true",help="open the GUI with disabled Decelerate Button")
-    parser.add_argument("-a", "--auto_accel",action="store_true",help="automatically accelerate the balls motion after every 5 seconds")
     parser.add_argument("-ac","--add_canvas",action="store_true",help="add canvas to record your progress")
     return parser.parse_args()
 
@@ -142,13 +194,8 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
     animate()
-    if args.disableDBT:
-      dec_Bt.config(state="disabled")
-    if args.auto_accel:
-      acc_Bt.config(state="disabled")
-      a.after(5000,auto_acc)
     if args.add_canvas:
-      c1 = tk.Canvas(a, width=200,height=500)
-      c1.grid(row=0,column=2)
+      if not args.add_canvas:display_score_Bt.config(state="disabled")
+      else:display_score_Bt.config(state="normal")
     a.mainloop()
 
